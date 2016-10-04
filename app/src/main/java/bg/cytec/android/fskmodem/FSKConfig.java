@@ -31,10 +31,10 @@ public class FSKConfig {
 
     public static final int SAMPLE_RATE_44100 = 44100; // LCMx2
     public static final int SAMPLE_RATE_22050 = 22050; // LEAST COMMON MULTIPLE
-    // OF 2450, 1225, 630,
-    // 315 and 126
+                                                       // OF 2450, 1225, 630,
+                                                       // 315 and 126
     public static final int SAMPLE_RATE_29400 = 29400; // DEFAULT for 1225; 24
-    // samples per bit
+                                                       // samples per bit
 
     public static final int PCM_8BIT = AudioFormat.ENCODING_PCM_8BIT;
     public static final int PCM_16BIT = AudioFormat.ENCODING_PCM_16BIT;

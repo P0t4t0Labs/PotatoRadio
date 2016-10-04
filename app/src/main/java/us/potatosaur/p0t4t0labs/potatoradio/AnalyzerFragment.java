@@ -19,32 +19,23 @@ import com.mantz_it.rfanalyzer.AnalyzerSurface;
 
 public class AnalyzerFragment extends Fragment {
 
-    private SharedPreferences preferences = null;
-    private AnalyzerSurface analyzerSurface = null;
+    public static AnalyzerSurface analyzerSurface = null;
+    private static AnalyzerFragment instance = null;
 
+    public static AnalyzerFragment getInstance() {
+        if (instance == null) {
+            instance = new AnalyzerFragment();
+        }
+        return instance;
+    }
+
+    private SharedPreferences preferences = null;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        Context context = getActivity().getApplicationContext();
-
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
-
         // Inflate the layout for this fragment
         View rootView = inflater.inflate(R.layout.analyzer_fragment, container, false);
-
-        // Create a analyzer surface:
-        analyzerSurface = new AnalyzerSurface(context, (AnalyzerSurface.CallbackInterface) getActivity());
-        analyzerSurface.setVerticalScrollEnabled(preferences.getBoolean(getString(R.string.pref_scrollDB), true));
-        analyzerSurface.setVerticalZoomEnabled(preferences.getBoolean(getString(R.string.pref_zoomDB), true));
-        analyzerSurface.setDecoupledAxis(preferences.getBoolean(getString(R.string.pref_decoupledAxis), false));
-        analyzerSurface.setDisplayRelativeFrequencies(preferences.getBoolean(getString(R.string.pref_relativeFrequencies), false));
-        analyzerSurface.setWaterfallColorMapType(Integer.valueOf(preferences.getString(getString(R.string.pref_colorMapType),"4")));
-        analyzerSurface.setFftDrawingType(Integer.valueOf(preferences.getString(getString(R.string.pref_fftDrawingType),"2")));
-        analyzerSurface.setFftRatio(Float.valueOf(preferences.getString(getString(R.string.pref_spectrumWaterfallRatio), "0.5")));
-        analyzerSurface.setFontSize(Integer.valueOf(preferences.getString(getString(R.string.pref_fontSize),"2")));
-        analyzerSurface.setShowDebugInformation(preferences.getBoolean(getString(R.string.pref_showDebugInformation), false));
-
         FrameLayout fl = (FrameLayout) rootView.findViewById(R.id.fl_analyzerFrame);
         if (fl != null) {
             fl.addView(analyzerSurface);
