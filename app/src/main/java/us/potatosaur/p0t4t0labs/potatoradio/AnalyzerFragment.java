@@ -30,6 +30,9 @@ public class AnalyzerFragment extends Fragment {
 
         preferences = PreferenceManager.getDefaultSharedPreferences(context);
 
+        // Inflate the layout for this fragment
+        View rootView = inflater.inflate(R.layout.analyzer_fragment, container, false);
+
         // Create a analyzer surface:
         analyzerSurface = new AnalyzerSurface(context, (AnalyzerSurface.CallbackInterface) getActivity());
         analyzerSurface.setVerticalScrollEnabled(preferences.getBoolean(getString(R.string.pref_scrollDB), true));
@@ -42,11 +45,12 @@ public class AnalyzerFragment extends Fragment {
         analyzerSurface.setFontSize(Integer.valueOf(preferences.getString(getString(R.string.pref_fontSize),"2")));
         analyzerSurface.setShowDebugInformation(preferences.getBoolean(getString(R.string.pref_showDebugInformation), false));
 
-        // Put the analyzer surface in the analyzer frame of the layout:
-        container.addView(analyzerSurface);
+        FrameLayout fl = (FrameLayout) rootView.findViewById(R.id.fl_analyzerFrame);
+        if (fl != null) {
+            fl.addView(analyzerSurface);
+        }
 
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.analyzer_fragment, container, false);
+        return rootView;
     }
 
 }

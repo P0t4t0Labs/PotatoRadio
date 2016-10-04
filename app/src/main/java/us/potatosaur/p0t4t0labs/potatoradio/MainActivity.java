@@ -46,11 +46,6 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        fragmentManager = getFragmentManager();
-        FragmentTransaction trans = fragmentManager.beginTransaction();
-        trans.add(R.id.fragment_container, new AnalyzerFragment());
-        trans.commit();
-
         /*FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -68,6 +63,12 @@ public class MainActivity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
+        fragmentManager = getFragmentManager();
+        FragmentTransaction trans = fragmentManager.beginTransaction();
+        AnalyzerFragment anal = new AnalyzerFragment();
+        trans.add(R.id.fragment_container, anal);
+        trans.commit();
 
         /* END UI SETUP *************************************************************************/
         /* BEGIN PREFERENCES ********************************************************************/
