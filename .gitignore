@@ -1,0 +1,15 @@
+# Java class files
+*.class
+
+# generated files
+bin/
+gen/
+app/.externalNativeBuild
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio
+.idea
+.gradle
+build/
