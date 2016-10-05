@@ -1,10 +1,7 @@
 package us.potatosaur.p0t4t0labs.potatoradio;
 
 import android.app.Fragment;
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,29 +16,41 @@ import com.mantz_it.rfanalyzer.AnalyzerSurface;
 
 public class AnalyzerFragment extends Fragment {
 
-    public static AnalyzerSurface analyzerSurface = null;
-    private static AnalyzerFragment instance = null;
+    private AnalyzerSurface analyzerSurface = null;
+    private FrameLayout rootView = null;
 
-    public static AnalyzerFragment getInstance() {
-        if (instance == null) {
-            instance = new AnalyzerFragment();
-        }
-        return instance;
+    public void setAnalyzerSurface(AnalyzerSurface as) {
+        this.analyzerSurface = as;
     }
 
-    private SharedPreferences preferences = null;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        if (analyzerSurface == null) {
+            throw new NullPointerException("No AnalyzerSurface to AnalyzerFragment.");
+        }
 
         // Inflate the layout for this fragment
-        View rootView = inflater.inflate(R.layout.analyzer_fragment, container, false);
-        FrameLayout fl = (FrameLayout) rootView.findViewById(R.id.fl_analyzerFrame);
-        if (fl != null) {
-            fl.addView(analyzerSurface);
+        rootView = (FrameLayout) inflater.inflate(R.layout.analyzer_fragment, container, false);
+        // analyzerSurface may already be on a child view. Let's steal it from them.
+        if (rootView != null) {
+            ViewGroup parent = (ViewGroup) analyzerSurface.getParent();
+            if (parent != null) {
+                parent.removeView(analyzerSurface);
+            }
+            rootView.addView(analyzerSurface);
         }
 
         return rootView;
     }
 
+    @Override
+    public void onDestroyView() {
+
+        if (rootView != null) {
+            rootView.removeAllViews();
+        }
+
+        super.onDestroyView();
+    }
 }
