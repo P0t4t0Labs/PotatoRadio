@@ -8,6 +8,8 @@ import android.util.Log;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import us.potatosaur.p0t4t0labs.potatoradio.Transceiver;
+
 /**
  * <h1>RF Analyzer - Audio Sink</h1>
  *
@@ -173,6 +175,9 @@ public class AudioSink extends Thread {
 				for (int i = 0; i < filteredPacket.size(); i++) {
 					shortPacket[i] = (short) (floatPacket[i] * 32767);
 				}
+
+				// Toss it to the FskDecode instance we're using
+				Transceiver.receive(shortPacket);
 
 				// Write it to the audioTrack:
 				if(audioTrack.write(shortPacket, 0, filteredPacket.size()) != filteredPacket.size()) {

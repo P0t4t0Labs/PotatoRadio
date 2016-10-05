@@ -183,20 +183,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        /**
-         * TODO feed the decoder data, the following is the sample code:
-         *
-         * while (mRecorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-         *
-         *    short[] data = new short[mBufferSize/2]; //the buffer size is in bytes
-         *
-         *    // gets the audio output from microphone to short array samples
-         *    mRecorder.read(data, 0, mBufferSize/2);
-         *
-         *    mDecoder.appendSignal(data);
-         * }
-          */
-
+        // Initialize FSK Decoder
         fskDecoder = new FSKDecoder(fskConfig, new FSKDecoder.FSKDecoderCallback() {
 
             @Override
@@ -212,7 +199,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        /// INIT FSK ENCODER
+        // Initialize FSK Encoder
         fskEncoder = new FSKEncoder(fskConfig, new FSKEncoder.FSKEncoderCallback() {
             @Override
             public void encoded(byte[] pcm8, short[] pcm16) {
@@ -237,7 +224,6 @@ public class MainActivity extends AppCompatActivity
         } catch (Exception e) {
             Log.e(LOGTAG, "Transmitter creation failed! " + e.getMessage());
         }
-
 
         // Restore / Initialize the running state and the demodulator mode:
         if(savedInstanceState != null) {

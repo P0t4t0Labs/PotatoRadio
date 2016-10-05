@@ -38,7 +38,11 @@ public class Transceiver {
         encoder.appendData(potatoPacket.getTxBytes());
     }
 
-    public static void receive(){
-        //TODO implement decoder.appendSignal.
+    /**
+     * Appends short[] data to the decoder signal
+     * @param data
+     */
+    public static void receive(short[] data){
+        decoder.appendSignal(data);
     }
 }
