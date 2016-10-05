@@ -69,6 +69,14 @@ public class PotatoPacket {
         return crc + type.ordinal() + data;
     }
 
+    /**
+     * Generates bytes of TxString to be used by FSKEncoder
+     * @return
+     */
+    public byte[] getTxBytes(){
+        return getTxString().getBytes();
+    }
+
 
 
 
