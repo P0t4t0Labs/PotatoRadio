@@ -13,3 +13,11 @@ local.properties
 .idea
 .gradle
 build/
+
+# Defaults from Android Studio
+*.iml
+/local.properties
+/.idea/workspace.xml
+/.idea/libraries
+.DS_Store
+/captures
