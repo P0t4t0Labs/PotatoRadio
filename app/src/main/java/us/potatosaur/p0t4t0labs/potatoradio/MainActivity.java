@@ -1,5 +1,6 @@
 package us.potatosaur.p0t4t0labs.potatoradio;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -9,12 +10,15 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -48,6 +52,10 @@ import com.mantz_it.rfanalyzer.SettingsActivity;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import bg.cytec.android.fskmodem.FSKConfig;
 import bg.cytec.android.fskmodem.FSKDecoder;
@@ -72,21 +80,27 @@ public class MainActivity extends AppCompatActivity
     private boolean running = false;
     private Scheduler scheduler = null;
     private Demodulator demodulator = null;
-    private AnalyzerProcessingLoop analyzerProcessingLoop = null;
     private IQSourceInterface source = null;
     private int demodulationMode = Demodulator.DEMODULATION_WFM;
+    private AnalyzerSurface analyzerSurface = null;
+    private AnalyzerProcessingLoop analyzerProcessingLoop = null;
 
     public FSKConfig fskConfig = null;
     private FSKDecoder fskDecoder = null;
     private FSKEncoder fskEncoder = null;
 
-    private AnalyzerSurface analyzerSurface = null;
     private MenuItem mi_startStop = null;
     private MenuItem mi_demodulationMode = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Request permissions to support Android Marshmallow and above devices
+        if (Build.VERSION.SDK_INT >= 23) {
+            checkPermissions();
+        }
+
         this.savedInstanceState = savedInstanceState;
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -117,7 +131,7 @@ public class MainActivity extends AppCompatActivity
         drawer.addDrawerListener(toggle);
         toggle.syncState();
 
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        final NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
         /* END UI SETUP *************************************************************************/
@@ -224,13 +238,25 @@ public class MainActivity extends AppCompatActivity
         analyzerSurface.setFftRatio(Float.valueOf(preferences.getString(getString(R.string.pref_spectrumWaterfallRatio), "0.5")));
         analyzerSurface.setFontSize(Integer.valueOf(preferences.getString(getString(R.string.pref_fontSize),"2")));
         analyzerSurface.setShowDebugInformation(preferences.getBoolean(getString(R.string.pref_showDebugInformation), false));
+
         // Link
-        AnalyzerFragment.analyzerSurface = analyzerSurface;
+        AnalyzerFragment analyzerFragment = new AnalyzerFragment();
+        analyzerFragment.setAnalyzerSurface(analyzerSurface);
 
         // Navigate to our initial view
         fragmentManager = getFragmentManager();
+        fragmentManager.addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener() {
+            @Override
+            public void onBackStackChanged() {
+                // Set checked whatever we just landed back on.
+                String itemId = fragmentManager.getBackStackEntryAt(fragmentManager.getBackStackEntryCount() - 1).getName();
+                navigationView.setCheckedItem(Integer.parseInt(itemId));
+            }
+        });
+
         FragmentTransaction trans = fragmentManager.beginTransaction();
-        trans.add(R.id.fragment_container, AnalyzerFragment.getInstance());
+        trans.replace(R.id.fragment_container, analyzerFragment);
+        trans.addToBackStack("0");
         trans.commit();
         navigationView.setCheckedItem(R.id.nav_analyzer);
     }
@@ -451,19 +477,24 @@ public class MainActivity extends AppCompatActivity
         // Handle navigation view item clicks here.
         int id = item.getItemId();
 
-        Fragment frag = null;
-        View v = (View) findViewById(R.id.fragment_container);
-        if (id == R.id.nav_analyzer) {
-            frag = AnalyzerFragment.getInstance();
-        } else if (id == R.id.nav_map) {
-            frag = new TestFragment();
+        Fragment nextFrag = null;
+        Fragment current = fragmentManager.findFragmentById(R.id.fragment_container);
+
+        // Where we switching to?
+        if (id == R.id.nav_analyzer && !(current instanceof AnalyzerFragment)) {
+            AnalyzerFragment af = new AnalyzerFragment();
+            af.setAnalyzerSurface(analyzerSurface);
+            nextFrag = af;
+        } else if (id == R.id.nav_map && !(current instanceof MapFragment)) {
+            nextFrag = new MapFragment();
         }
 
-        if (frag != null) {
+        if (nextFrag != null) {
             item.setChecked(true);
             FragmentTransaction trans = fragmentManager.beginTransaction();
-            trans.addToBackStack(null);
-            trans.add(R.id.fragment_container, frag);
+            trans.replace(R.id.fragment_container, nextFrag);
+            // Stick the item Id here so we can get it in addOnBackStackChangedListener
+            trans.addToBackStack(Integer.toString(item.getItemId()));
             trans.commit();
         }
 
@@ -1382,4 +1413,62 @@ public class MainActivity extends AppCompatActivity
         else
             return -1;
     }
+
+    // START PERMISSION CHECK
+    final private int REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124;
+
+    private void checkPermissions() {
+        List<String> permissions = new ArrayList<>();
+        String message = "osmdroid permissions:";
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            message += "\nLocation to show user location.";
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            message += "\nStorage access to store map tiles.";
+        }
+        if (!permissions.isEmpty()) {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            String[] params = permissions.toArray(new String[permissions.size()]);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(params, REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
+            }
+        } // else: We already have permissions, so handle as normal
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS: {
+                Map<String, Integer> perms = new HashMap<>();
+                // Initial
+                perms.put(Manifest.permission.ACCESS_FINE_LOCATION, PackageManager.PERMISSION_GRANTED);
+                perms.put(Manifest.permission.WRITE_EXTERNAL_STORAGE, PackageManager.PERMISSION_GRANTED);
+                // Fill with results
+                for (int i = 0; i < permissions.length; i++)
+                    perms.put(permissions[i], grantResults[i]);
+                // Check for ACCESS_FINE_LOCATION and WRITE_EXTERNAL_STORAGE
+                Boolean location = perms.get(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                Boolean storage = perms.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+                if (location && storage) {
+                    // All Permissions Granted
+                    Toast.makeText(MainActivity.this, "All permissions granted", Toast.LENGTH_SHORT).show();
+                } else if (location) {
+                    Toast.makeText(this, "Storage permission is required to store map tiles to reduce data usage and for offline usage.", Toast.LENGTH_LONG).show();
+                } else if (storage) {
+                    Toast.makeText(this, "Location permission is required to show the user's location on map.", Toast.LENGTH_LONG).show();
+                } else { // !location && !storage case
+                    // Permission Denied
+                    Toast.makeText(MainActivity.this, "Storage permission is required to store map tiles to reduce data usage and for offline usage." +
+                            "\nLocation permission is required to show the user's location on map.", Toast.LENGTH_SHORT).show();
+                }
+            }
+            break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    // END PERMISSION CHECK
 }
