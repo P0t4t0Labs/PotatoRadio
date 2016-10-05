@@ -88,10 +88,10 @@ public class MainActivity extends AppCompatActivity
     private AnalyzerProcessingLoop analyzerProcessingLoop = null;
 
     public FSKConfig fskConfig = null;
-    private FSKDecoder fskDecoder = null;
+    public FSKDecoder fskDecoder = null;
     private FSKEncoder fskEncoder = null;
     private AudioTrack audioTrack;
-    public Transmitter transmitter = null;
+    public Transceiver transceiver = null;
 
     private MenuItem mi_startStop = null;
     private MenuItem mi_demodulationMode = null;
@@ -183,6 +183,20 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        /**
+         * TODO feed the decoder data, the following is the sample code:
+         *
+         * while (mRecorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+         *
+         *    short[] data = new short[mBufferSize/2]; //the buffer size is in bytes
+         *
+         *    // gets the audio output from microphone to short array samples
+         *    mRecorder.read(data, 0, mBufferSize/2);
+         *
+         *    mDecoder.appendSignal(data);
+         * }
+          */
+
         fskDecoder = new FSKDecoder(fskConfig, new FSKDecoder.FSKDecoderCallback() {
 
             @Override
@@ -217,9 +231,9 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        // Initialize the Transmitter
+        // Initialize the Transceiver
         try{
-            transmitter = new Transmitter(fskEncoder);
+            transceiver = new Transceiver(fskEncoder, fskDecoder);
         } catch (Exception e) {
             Log.e(LOGTAG, "Transmitter creation failed! " + e.getMessage());
         }

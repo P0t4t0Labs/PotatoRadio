@@ -8,19 +8,23 @@ import bg.cytec.android.fskmodem.FSKEncoder;
  * Created by kris on 10/5/16.
  */
 
-public class Transmitter {
+public class Transceiver {
     private static FSKEncoder encoder = null;
+    private static FSKDecoder decoder = null;
 
     /**
-     * Transmitter provides interfaces to the fskmodem
+     * Transceiver provides interfaces to the fskmodem
      * @throws Exception
      * @see FSKConfig
      * @see FSKEncoder
      */
-    public Transmitter (FSKEncoder encoder) throws Exception{
+    public Transceiver (FSKEncoder encoder, FSKDecoder decoder) throws Exception{
         if (encoder == null)
             throw new Exception("The encoder parameter must not be null!");
+        if (decoder == null)
+            throw new Exception("The decoder parameter must not be null!");
         this.encoder = encoder;
+        this.decoder = decoder;
     }
 
 
@@ -32,5 +36,9 @@ public class Transmitter {
      */
     public static void transmit(PotatoPacket potatoPacket){
         encoder.appendData(potatoPacket.getTxBytes());
+    }
+
+    public static void receive(){
+        //TODO implement decoder.appendSignal.
     }
 }
