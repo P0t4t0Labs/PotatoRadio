@@ -30,6 +30,7 @@ import android.app.Fragment;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -45,6 +46,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -57,7 +59,7 @@ import java.util.Random;
 /**
  * A chat fragment containing messages view and input form.
  */
-public class ChatFragment extends Fragment {
+public class ChatFragment extends Fragment implements Transceiver.TransceiverDataReceiver {
 
     private static final int REQUEST_LOGIN = 0;
     private static final String TAG = "ChatFragment";
@@ -70,8 +72,6 @@ public class ChatFragment extends Fragment {
     private RecyclerView.Adapter mAdapter;
     private String mUsername;
 
-    private boolean hasRunOnCreate = false;
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,7 +82,8 @@ public class ChatFragment extends Fragment {
         }
         mAdapter = new ChatMessageAdapter(getActivity(), mMessages);
         setHasOptionsMenu(true);
-        hasRunOnCreate = true;
+
+        Transceiver.addListener(this);
     }
 
     @Override
@@ -149,7 +150,17 @@ public class ChatFragment extends Fragment {
                 debugMsgHandler.postDelayed(this, 2000);
             }
         };
-        debugMsgHandler.post(debugMsgSender);
+        // TURN THIS ON FOR FAKE MESSAGES
+        //debugMsgHandler.post(debugMsgSender);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        InputMethodManager inputMethodManager = (InputMethodManager)  getActivity().getSystemService(Activity.INPUT_METHOD_SERVICE);
+        IBinder token = getActivity().getCurrentFocus().getWindowToken();
+        if (token != null)
+            inputMethodManager.hideSoftInputFromWindow(token, 0);
     }
 
     /* This was the original intended way to start but we don't actually start this way
@@ -211,6 +222,13 @@ public class ChatFragment extends Fragment {
             return;
         }
 
+        try {
+            Transceiver.transmit(new PotatoPacket(PotatoPacket.DataType.MESSAGE, message));
+        } catch (Exception e) {
+            mInputMessageView.requestFocus();
+            return;
+        }
+
         mInputMessageView.setText("");
         addMessage(mUsername, message);
 
@@ -220,5 +238,10 @@ public class ChatFragment extends Fragment {
 
     private void scrollToBottom() {
         mMessagesView.scrollToPosition(mAdapter.getItemCount() - 1);
+    }
+
+    @Override
+    public void gotData(String data) {
+        addMessage("RADIO", data);
     }
 }

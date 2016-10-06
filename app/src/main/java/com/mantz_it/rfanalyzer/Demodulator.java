@@ -5,6 +5,8 @@ import android.util.Log;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import us.potatosaur.p0t4t0labs.potatoradio.DemodTransferSink;
+
 /**
  * <h1>RF Analyzer - Demodulator</h1>
  *
@@ -81,8 +83,8 @@ public class Demodulator extends Thread {
 	public static final int DEMODULATION_USB 	= 5;
 	public int demodulationMode;
 
-	// AUDIO OUTPUT
-	private AudioSink audioSink = null;		// Will do QUADRATURE_RATE --> AUDIO_RATE and audio output
+	// AUDIO DECODING
+	private DemodTransferSink transferSink = null; // Will do QUADRATURE_RATE --> AUDIO_RATE and audio output
 
 	/**
 	 * Constructor. Creates a new demodulator block reading its samples from the given input queue and
@@ -100,8 +102,7 @@ public class Demodulator extends Thread {
 		// smaller buffers.
 		this.quadratureSamples = new SamplePacket(packetSize);
 
-		// Create Audio Sink
-		this.audioSink = new AudioSink(packetSize, AUDIO_RATE);
+		this.transferSink= new DemodTransferSink(packetSize, AUDIO_RATE);
 
 		// Create Decimator block
 		// Note that the decimator directly reads from the inputQueue and also returns processed packets to the
@@ -178,7 +179,7 @@ public class Demodulator extends Thread {
 		Log.i(LOGTAG,"Demodulator started. (Thread: " + this.getName() + ")");
 
 		// Start the audio sink thread:
-		audioSink.start();
+		transferSink.start();
 
 		// Start decimator thread:
 		decimator.start();
@@ -201,7 +202,7 @@ public class Demodulator extends Thread {
 			decimator.returnDecimatedPacket(inputSamples);
 
 			// get buffer from audio sink
-			audioBuffer = audioSink.getPacketBuffer(1000);
+			audioBuffer = transferSink.getPacketBuffer(1000);
 
 			// demodulate		[sample rate is QUADRATURE_RATE]
 			switch (demodulationMode) {
@@ -232,12 +233,12 @@ public class Demodulator extends Thread {
 					Log.e(LOGTAG, "run: invalid demodulationMode: " + demodulationMode);
 			}
 
-			// play audio		[sample rate is QUADRATURE_RATE]
-			audioSink.enqueuePacket(audioBuffer);
+			// decode audio		[sample rate is QUADRATURE_RATE]
+			transferSink.enqueuePacket(audioBuffer);
 		}
 
 		// Stop the audio sink thread:
-		audioSink.stopSink();
+		transferSink.stopSink();
 
 		// Stop the decimator thread:
 		decimator.stopDecimator();

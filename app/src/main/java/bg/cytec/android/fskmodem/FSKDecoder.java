@@ -23,6 +23,8 @@
 
 package bg.cytec.android.fskmodem;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 

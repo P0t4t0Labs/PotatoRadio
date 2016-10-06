@@ -1020,8 +1020,9 @@ public class AnalyzerSurface extends SurfaceView implements SurfaceHolder.Callba
 					drawFrequencyGrid(c);
 					drawPowerGrid(c);
 					drawPerformanceInfo(c, frameRate, load, averageSignalStrengh);
-				} else
-					Log.d(LOGTAG, "draw: Canvas is null.");
+				} else {
+					//Log.d(LOGTAG, "draw: Canvas is null.");
+				}
 			}
 		} catch (Exception e)
 		{

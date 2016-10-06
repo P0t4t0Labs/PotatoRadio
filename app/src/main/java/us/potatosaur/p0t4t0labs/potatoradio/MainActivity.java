@@ -6,6 +6,7 @@ import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -19,6 +20,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
@@ -33,6 +35,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
@@ -88,12 +91,6 @@ public class MainActivity extends AppCompatActivity
     private AnalyzerSurface analyzerSurface = null;
     private AnalyzerProcessingLoop analyzerProcessingLoop = null;
 
-    public FSKConfig fskConfig = null;
-    public FSKDecoder fskDecoder = null;
-    private FSKEncoder fskEncoder = null;
-    private AudioTrack audioTrack;
-    public Transceiver transceiver = null;
-
     private MenuItem mi_startStop = null;
     private MenuItem mi_demodulationMode = null;
 
@@ -126,6 +123,13 @@ public class MainActivity extends AppCompatActivity
                 super.onDrawerSlide(drawerView, slideOffset);
                 drawer.bringChildToFront(drawerView);
                 drawer.requestLayout();
+
+                // Kill keyboards
+                InputMethodManager inputMethodManager =
+                        (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                IBinder windowToken = getCurrentFocus().getWindowToken();
+                if (windowToken != null)
+                    inputMethodManager.hideSoftInputFromWindow(windowToken, 0);
             }
         };
         drawer.addDrawerListener(toggle);
@@ -168,58 +172,6 @@ public class MainActivity extends AppCompatActivity
 
         /* END PREFERENCES **********************************************************************/
         /* BEGIN Service Setup ******************************************************************/
-
-        try {
-            // minimodem --rx -R 29400 -M 7350 -S 4900 1225
-            fskConfig = new FSKConfig(FSKConfig.SAMPLE_RATE_29400, FSKConfig.PCM_16BIT,
-                    FSKConfig.CHANNELS_MONO, FSKConfig.SOFT_MODEM_MODE_4, FSKConfig.THRESHOLD_20P);
-        } catch (IOException e) {
-            Log.e(LOGTAG, "FSK Config Failed");
-            e.printStackTrace();
-            return;
-        }
-
-        // Initialize FSK Decoder
-        fskDecoder = new FSKDecoder(fskConfig, new FSKDecoder.FSKDecoderCallback() {
-
-            @Override
-            public void decoded(byte[] newData) {
-
-                final String text = new String(newData);
-
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        Log.d(LOGTAG, "FSK Decoded: " + text);
-                    }
-                });
-            }
-        });
-
-        // Initialize FSK Encoder
-        fskEncoder = new FSKEncoder(fskConfig, new FSKEncoder.FSKEncoderCallback() {
-            @Override
-            public void encoded(byte[] pcm8, short[] pcm16) {
-                if (fskConfig.pcmFormat == fskConfig.PCM_16BIT) {
-                    //16bit buffer is populated, 8bit buffer is null
-
-                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-                            fskConfig.sampleRate, AudioFormat.CHANNEL_OUT_MONO,
-                            AudioFormat.ENCODING_PCM_16BIT, pcm16.length*2,
-                            AudioTrack.MODE_STATIC);
-
-                    audioTrack.write(pcm16, 0, pcm16.length);
-
-                    audioTrack.play();
-                }
-            }
-        });
-
-        // Initialize the Transceiver
-        try{
-            transceiver = new Transceiver(fskEncoder, fskDecoder);
-        } catch (Exception e) {
-            Log.e(LOGTAG, "Transmitter creation failed! " + e.getMessage());
-        }
 
         // Restore / Initialize the running state and the demodulator mode:
         if(savedInstanceState != null) {
@@ -338,14 +290,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         // Shut down FSK components
-        fskEncoder.stop();
-        fskDecoder.stop();
-
-        if (audioTrack != null && audioTrack.getPlayState() == AudioTrack.STATE_INITIALIZED)
-        {
-            audioTrack.stop();
-            audioTrack.release();
-        }
+        Transceiver.stop();
     }
 
     @Override
