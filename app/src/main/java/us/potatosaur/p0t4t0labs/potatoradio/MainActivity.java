@@ -12,7 +12,9 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -87,8 +89,10 @@ public class MainActivity extends AppCompatActivity
     private AnalyzerProcessingLoop analyzerProcessingLoop = null;
 
     public FSKConfig fskConfig = null;
-    private FSKDecoder fskDecoder = null;
+    public FSKDecoder fskDecoder = null;
     private FSKEncoder fskEncoder = null;
+    private AudioTrack audioTrack;
+    public Transceiver transceiver = null;
 
     private MenuItem mi_startStop = null;
     private MenuItem mi_demodulationMode = null;
@@ -173,6 +177,48 @@ public class MainActivity extends AppCompatActivity
             Log.e(LOGTAG, "FSK Config Failed");
             e.printStackTrace();
             return;
+        }
+
+        // Initialize FSK Decoder
+        fskDecoder = new FSKDecoder(fskConfig, new FSKDecoder.FSKDecoderCallback() {
+
+            @Override
+            public void decoded(byte[] newData) {
+
+                final String text = new String(newData);
+
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        Log.d(LOGTAG, "FSK Decoded: " + text);
+                    }
+                });
+            }
+        });
+
+        // Initialize FSK Encoder
+        fskEncoder = new FSKEncoder(fskConfig, new FSKEncoder.FSKEncoderCallback() {
+            @Override
+            public void encoded(byte[] pcm8, short[] pcm16) {
+                if (fskConfig.pcmFormat == fskConfig.PCM_16BIT) {
+                    //16bit buffer is populated, 8bit buffer is null
+
+                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                            fskConfig.sampleRate, AudioFormat.CHANNEL_OUT_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT, pcm16.length*2,
+                            AudioTrack.MODE_STATIC);
+
+                    audioTrack.write(pcm16, 0, pcm16.length);
+
+                    audioTrack.play();
+                }
+            }
+        });
+
+        // Initialize the Transceiver
+        try{
+            transceiver = new Transceiver(fskEncoder, fskDecoder);
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Transmitter creation failed! " + e.getMessage());
         }
 
         // Restore / Initialize the running state and the demodulator mode:
@@ -289,6 +335,16 @@ public class MainActivity extends AppCompatActivity
             } catch (ActivityNotFoundException e) {
                 Log.e(LOGTAG, "onDestroy: RTL2832U is not installed");
             }
+        }
+
+        // Shut down FSK components
+        fskEncoder.stop();
+        fskDecoder.stop();
+
+        if (audioTrack != null && audioTrack.getPlayState() == AudioTrack.STATE_INITIALIZED)
+        {
+            audioTrack.stop();
+            audioTrack.release();
         }
     }
 
