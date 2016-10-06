@@ -3,12 +3,9 @@ package us.potatosaur.p0t4t0labs.potatoradio;
 import org.osmdroid.events.MapListener;
 import org.osmdroid.events.ScrollEvent;
 import org.osmdroid.events.ZoomEvent;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ItemizedIconOverlay;
-import org.osmdroid.views.overlay.ItemizedOverlayWithFocus;
-import org.osmdroid.views.overlay.MinimapOverlay;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
@@ -18,12 +15,15 @@ import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
+import org.osmdroid.views.overlay.mylocation.SimpleLocationOverlay;
 
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
@@ -31,19 +31,19 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.EventListener;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -54,9 +54,9 @@ public class MapFragment extends Fragment implements LocationListener {
     private final String TAG = "MapFragment";
     protected MapView mMapView;
     private MyLocationNewOverlay mLocationOverlay;
-    private CompassOverlay mCompassOverlay;
     private ScaleBarOverlay mScaleBarOverlay;
     private RotationGestureOverlay mRotationGestureOverlay;
+    private SimpleLocationOverlay mMyLocationOverlay;
     private ItemizedIconOverlay<OverlayItem> mPeopleOverlay;
     protected ImageButton btCenterMap;
     protected ImageButton btFollowMe;
@@ -65,22 +65,20 @@ public class MapFragment extends Fragment implements LocationListener {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants.setUserAgentValue(BuildConfig.APPLICATION_ID);
         super.onCreate(savedInstanceState);
+        org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants.setUserAgentValue(BuildConfig.APPLICATION_ID);
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.map_fragment, container, false);
-
         // Request permissions to support Android Marshmallow and above devices
         if (Build.VERSION.SDK_INT >= 23) {
             checkPermissions();
         }
 
-        mMapView = (MapView) rootView.findViewById(R.id.mapview);
-        lm = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
-        lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0l, 0f, this);
+        View rootView = inflater.inflate(R.layout.map_fragment, container, false);
+        mMapView = new MapView(inflater.getContext());
+        ((FrameLayout)rootView.findViewById(R.id.map_container)).addView(mMapView);
 
         return rootView;
     }
@@ -90,8 +88,6 @@ public class MapFragment extends Fragment implements LocationListener {
         final Context context = this.getActivity();
         final DisplayMetrics dm = context.getResources().getDisplayMetrics();
 
-        this.mCompassOverlay = new CompassOverlay(context, new InternalCompassOrientationProvider(context),
-                mMapView);
         this.mLocationOverlay = new MyLocationNewOverlay(new GpsMyLocationProvider(context),
                 mMapView);
 
@@ -102,24 +98,37 @@ public class MapFragment extends Fragment implements LocationListener {
         mRotationGestureOverlay = new RotationGestureOverlay(mMapView);
         mRotationGestureOverlay.setEnabled(true);
 
+        mMyLocationOverlay = new SimpleLocationOverlay(BitmapFactory.decodeResource(getResources(), R.drawable.person));
+
         mMapView.getController().setZoom(15);
         mMapView.setTilesScaledToDpi(true);
         mMapView.setBuiltInZoomControls(true);
         mMapView.setMultiTouchControls(true);
         mMapView.setFlingEnabled(true);
         mMapView.getOverlays().add(this.mLocationOverlay);
-        mMapView.getOverlays().add(this.mCompassOverlay);
         mMapView.getOverlays().add(this.mScaleBarOverlay);
-        mMapView.getOverlays().add(this.mRotationGestureOverlay);
+        mMapView.getOverlays().add(this.mMyLocationOverlay);
+
+        mLocationOverlay.enableMyLocation();
+        mLocationOverlay.enableFollowLocation();
+        mLocationOverlay.setOptionsMenuEnabled(true);
+
+        // Center to center of USA (will update to your location shortly after)
+        mMapView.getController().setCenter(new GeoPoint(39.8333333, -98.585522));
 
         btCenterMap = (ImageButton) view.findViewById(R.id.ic_center_map);
+        btCenterMap.setVisibility(View.GONE); // Will get enabled when we receive a location
 
         btCenterMap.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Log.i(TAG, "centerMap clicked ");
                 if (currentLocation!=null) {
+                    GeoPoint center = (GeoPoint) mMapView.getMapCenter();
+                    if (center != null)
+                        Log.d(TAG, "Current: " + center.getLatitude() + ", " + center.getLongitude());
                     GeoPoint myPosition = new GeoPoint(currentLocation.getLatitude(),currentLocation.getLongitude());
+                    Log.d(TAG, "Moving: " + myPosition.getLatitude() + ", " + myPosition.getLongitude());
                     mMapView.getController().animateTo(myPosition);
                     mMapView.setMapOrientation(360.0f);
                 }
@@ -127,6 +136,7 @@ public class MapFragment extends Fragment implements LocationListener {
         });
 
         btFollowMe = (ImageButton) view.findViewById(R.id.ic_follow_me);
+        btFollowMe.setVisibility(View.GONE); // Will get enabled when we receive a location
 
         btFollowMe.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -198,24 +208,45 @@ public class MapFragment extends Fragment implements LocationListener {
         mMapView.getOverlays().add(mPeopleOverlay);
 
         // Tampa convention center
-        addMarker("Test", "HErro herro", new GeoPoint(27.9429057,-82.4577568));
-    }
+        addMarker("Test", "Test message", new GeoPoint(27.9429057,-82.4577568));
 
-    @Override
-    public void onResume() {
-        mLocationOverlay.enableMyLocation();
-        //mLocationOverlay.enableFollowLocation();
-        mLocationOverlay.setOptionsMenuEnabled(true);
-        mCompassOverlay.enableCompass();
-        super.onResume();
+        // Need to manually say we've resumed so location and such works.
+        this.myResume();
+        Log.d(TAG, "OnViewCreated");
     }
 
     @Override
     public void onPause() {
-        mLocationOverlay.disableMyLocation();
-        mLocationOverlay.disableFollowLocation();
-        mCompassOverlay.disableCompass();
         super.onPause();
+        if (lm != null && ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            lm.removeUpdates(this);
+        }
+
+        mLocationOverlay.disableFollowLocation();
+        mLocationOverlay.disableMyLocation();
+        mScaleBarOverlay.disableScaleBar();
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+        myResume();
+    }
+
+    private void myResume() {
+        lm = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+        }
+
+        mLocationOverlay.enableFollowLocation();
+        mLocationOverlay.enableMyLocation();
+        mScaleBarOverlay.enableScaleBar();
+
+        btCenterMap.callOnClick();
     }
 
     @Override
@@ -227,7 +258,16 @@ public class MapFragment extends Fragment implements LocationListener {
 
     @Override
     public void onLocationChanged(Location location) {
+        GeoPoint geoLoc = new GeoPoint(location.getLatitude(), location.getLongitude());
+        if (currentLocation == null) {
+            btCenterMap.setVisibility(View.VISIBLE);
+            btFollowMe.setVisibility(View.VISIBLE);
+            mMapView.getController().animateTo(geoLoc);
+            mMapView.setMapOrientation(360.0f);
+        }
         currentLocation = location;
+        mMyLocationOverlay.setLocation(geoLoc);
+        Log.d(TAG, "location updated " + location.toString());
     }
 
     @Override
@@ -255,7 +295,7 @@ public class MapFragment extends Fragment implements LocationListener {
         if (mPeopleOverlay == null)
             return;
 
-        final Drawable icon = ContextCompat.getDrawable(getActivity(), R.drawable.ic_action_record_on);
+        final Drawable icon = ContextCompat.getDrawable(getActivity(), R.drawable.ic_map_place);
 
         OverlayItem marker = new OverlayItem(title, description, point);
         marker.setMarker(icon);

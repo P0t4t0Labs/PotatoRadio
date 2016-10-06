@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.support.design.widget.NavigationView;
@@ -244,14 +245,18 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onBackStackChanged() {
                 // Set checked whatever we just landed back on.
-                String itemId = fragmentManager.getBackStackEntryAt(fragmentManager.getBackStackEntryCount() - 1).getName();
-                navigationView.setCheckedItem(Integer.parseInt(itemId));
+                if (fragmentManager.getBackStackEntryCount() > 0) {
+                    String itemId = fragmentManager.getBackStackEntryAt(fragmentManager.getBackStackEntryCount() - 1).getName();
+                    navigationView.setCheckedItem(Integer.parseInt(itemId));
+                } else {
+                    // Analyzer
+                    navigationView.setCheckedItem(0);
+                }
             }
         });
 
         FragmentTransaction trans = fragmentManager.beginTransaction();
         trans.replace(R.id.fragment_container, analyzerFragment);
-        trans.addToBackStack("0");
         trans.commit();
         navigationView.setCheckedItem(R.id.nav_analyzer);
     }
@@ -468,7 +473,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         // Handle navigation view item clicks here.
         int id = item.getItemId();
 
@@ -482,6 +487,8 @@ public class MainActivity extends AppCompatActivity
             nextFrag = af;
         } else if (id == R.id.nav_map && !(current instanceof MapFragment)) {
             nextFrag = new MapFragment();
+        } else if (id == R.id.nav_chat && !(current instanceof ChatFragment)) {
+            nextFrag = new ChatFragment();
         }
 
         if (nextFrag != null) {

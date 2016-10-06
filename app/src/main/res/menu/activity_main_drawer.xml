@@ -10,9 +10,12 @@
             android:id="@+id/nav_map"
             android:icon="@drawable/ic_menu_map"
             android:title="Map" />
+        <item
+            android:id="@+id/nav_chat"
+            android:icon="@drawable/ic_menu_send"
+            android:title="Chat" />
 
-
-
+<!--
 
         <item
             android:id="@+id/nav_slideshow"
@@ -21,10 +24,10 @@
         <item
             android:id="@+id/nav_manage"
             android:icon="@drawable/ic_menu_manage"
-            android:title="Tools" />
+            android:title="Tools" />-->
     </group>
 
-    <item android:title="Communicate">
+   <!-- <item android:title="Communicate">
         <menu>
             <item
                 android:id="@+id/nav_share"
@@ -35,6 +38,6 @@
                 android:icon="@drawable/ic_menu_send"
                 android:title="Send" />
         </menu>
-    </item>
+    </item>-->
 
 </menu>
